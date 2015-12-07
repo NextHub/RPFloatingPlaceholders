@@ -27,6 +27,7 @@
 
 // Make readwrite
 @property (nonatomic, strong, readwrite) UILabel *floatingLabel;
+@property (nonatomic, strong, readwrite) UIView *underlineView;
 
 @end
 
@@ -159,17 +160,20 @@
     self.floatingLabel.backgroundColor = [UIColor clearColor];
     self.floatingLabel.alpha = 0.f;
     
+    self.underlineView = [[UIView alloc] init];
+    [self addSubview:self.underlineView];
+    
     if ([self respondsToSelector:@selector(textContainerInset)]) {
         // Change content inset to decrease margin between floating label and
         // text view text
-        self.contentInset = UIEdgeInsetsMake(-10.f, 0.f, 0.f, 0.f);
+        self.contentInset = UIEdgeInsetsMake(-10.f, 0.f, 3.f, 0.f);
     
         // Fixes a vertical alignment issue when setting text at runtime
-        self.textContainerInset = UIEdgeInsetsMake(10.f, 0.f, 0.f, 0.f);
+        self.textContainerInset = UIEdgeInsetsMake(10.f, 0.f, 3.f, 0.f);
     } else {
         // Change content inset to decrease left margin and margin between
         // floating text view text
-        self.contentInset = UIEdgeInsetsMake(-8.f, -3.f, 0.f, 0.f);
+        self.contentInset = UIEdgeInsetsMake(-8.f, -3.f, 2.f, 0.f);
     }  // iOS 6
     
     // Cache the original text view frame
@@ -192,6 +196,7 @@
     self.floatingLabelInactiveTextColor = self.floatingLabelInactiveTextColor ?: [UIColor colorWithWhite:0.7f alpha:1.f];
     
     self.floatingLabel.textColor = self.floatingLabelActiveTextColor;
+    self.underlineView.backgroundColor = self.floatingLabelInactiveTextColor;
 }
 
 #pragma mark - Drawing & Animations
@@ -199,7 +204,9 @@
 - (void)layoutSubviews
 {
     [super layoutSubviews];
-    
+
+    self.underlineView.frame = CGRectMake(5.f, self.frame.size.height - 1.f, self.frame.size.width - 10.f, 1.f);
+
     // Check if we need to redraw for pre-existing text
     if (![self isFirstResponder]) {
         [self checkForExistingText];
@@ -330,6 +337,14 @@
     } completion:nil];
 }
 
+- (void)animateUnderlineColorChangeWithAnimationBlock:(void (^)(void))animationBlock
+{
+    UIViewAnimationOptions options = UIViewAnimationOptionBeginFromCurrentState|UIViewAnimationOptionTransitionCrossDissolve;
+    [UIView transitionWithView:self.floatingLabel duration:0.25 options:options animations:^{
+        animationBlock();
+    } completion:nil];
+}
+
 #pragma mark - Text View Observers
 
 - (void)textViewDidBeginEditing:(NSNotification *)notification
@@ -339,6 +354,11 @@
         __strong __typeof(weakSelf) strongSelf = weakSelf;
         self.floatingLabel.textColor = strongSelf.floatingLabelActiveTextColor;
     }];
+    
+    [self animateUnderlineColorChangeWithAnimationBlock:^{
+        __strong __typeof(weakSelf) strongSelf = weakSelf;
+        _underlineView.backgroundColor = strongSelf.floatingLabelActiveTextColor;
+    }];
 }
 
 - (void)textViewDidEndEditing:(NSNotification *)notification
@@ -347,6 +367,11 @@
     [self animateFloatingLabelColorChangeWithAnimationBlock:^{
         __strong __typeof(weakSelf) strongSelf = weakSelf;
         self.floatingLabel.textColor = strongSelf.floatingLabelInactiveTextColor;
+    }];
+    
+    [self animateUnderlineColorChangeWithAnimationBlock:^{
+        __strong __typeof(weakSelf) strongSelf = weakSelf;
+        _underlineView.backgroundColor = strongSelf.floatingLabelInactiveTextColor;
     }];
 }
 

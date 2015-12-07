@@ -32,6 +32,7 @@
 
 // Make readwrite
 @property (nonatomic, strong, readwrite) UILabel *floatingLabel;
+@property (nonatomic, strong, readwrite) UIView *underlineView;
 
 @end
 
@@ -158,6 +159,9 @@
     self.floatingLabel.backgroundColor = [UIColor clearColor];
     self.floatingLabel.alpha = 1.f;
     
+    self.underlineView = [[UIView alloc] init];
+    [self addSubview:self.underlineView];
+    
     // Adjust the top margin of the text field and then cache the original
     // view frame
     self.originalTextFieldFrame = UIEdgeInsetsInsetRect(self.frame, UIEdgeInsetsMake(5.f, 0.f, 2.f, 0.f));
@@ -180,6 +184,7 @@
     self.floatingLabelInactiveTextColor = self.floatingLabelInactiveTextColor ?: [UIColor colorWithWhite:0.7f alpha:1.f];
     
     self.floatingLabel.textColor = self.floatingLabelActiveTextColor;
+    self.underlineView.backgroundColor = self.floatingLabelInactiveTextColor;
 }
 
 #pragma mark - Drawing & Animations
@@ -187,6 +192,8 @@
 - (void)layoutSubviews
 {
     [super layoutSubviews];
+    
+    self.underlineView.frame = CGRectMake(5.f, self.frame.size.height - 1.f, self.frame.size.width - 10.f, 1.f);
     
     // Check if we need to redraw for pre-existing text
     if (![self isFirstResponder]) {
@@ -216,8 +223,7 @@
                                 withAttributes:placeholderAttributes];
             
         } else {
-            NSAttributedString *attributedPlaceholder = [[NSAttributedString alloc] initWithString:self.cachedPlaceholder
-                                                                                        attributes:placeholderAttributes];
+            NSAttributedString *attributedPlaceholder = [[NSAttributedString alloc] initWithString:self.cachedPlaceholder attributes:placeholderAttributes];
             [attributedPlaceholder drawInRect:placeholderFrame];
         } // iOS 6
         
@@ -328,6 +334,15 @@
     } completion:nil];
 }
 
+- (void)animateUnderlineColorChangeWithAnimationBlock:(void (^)(void))animationBlock
+{
+    UIViewAnimationOptions options = UIViewAnimationOptionBeginFromCurrentState|UIViewAnimationOptionTransitionCrossDissolve;
+    [UIView transitionWithView:self.floatingLabel duration:0.25 options:options animations:^{
+        animationBlock();
+    } completion:nil];
+}
+
+
 #pragma mark - Text Field Observers
 
 - (void)textFieldDidBeginEditing:(NSNotification *)notification
@@ -337,6 +352,11 @@
         __strong __typeof(weakSelf) strongSelf = weakSelf;
         _floatingLabel.textColor = strongSelf.floatingLabelActiveTextColor;
     }];
+    
+    [self animateUnderlineColorChangeWithAnimationBlock:^{
+        __strong __typeof(weakSelf) strongSelf = weakSelf;
+        _underlineView.backgroundColor = strongSelf.floatingLabelActiveTextColor;
+    }];
 }
 
 - (void)textFieldDidEndEditing:(NSNotification *)notification
@@ -345,6 +365,11 @@
     [self animateFloatingLabelColorChangeWithAnimationBlock:^{
         __strong __typeof(weakSelf) strongSelf = weakSelf;
         self.floatingLabel.textColor = strongSelf.floatingLabelInactiveTextColor;
+    }];
+    
+    [self animateUnderlineColorChangeWithAnimationBlock:^{
+        __strong __typeof(weakSelf) strongSelf = weakSelf;
+        _underlineView.backgroundColor = strongSelf.floatingLabelInactiveTextColor;
     }];
 }
 
