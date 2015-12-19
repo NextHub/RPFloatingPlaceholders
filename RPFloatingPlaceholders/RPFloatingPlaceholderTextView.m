@@ -33,6 +33,8 @@
 
 @implementation RPFloatingPlaceholderTextView
 
+static void * kvoContext = &kvoContext;
+
 #pragma mark - Programmatic Initializer
 
 - (instancetype)initWithFrame:(CGRect)frame
@@ -103,6 +105,7 @@
 {
     // Remove the text view observers
     [[NSNotificationCenter defaultCenter] removeObserver:self];
+    [self removeObserver:self forKeyPath:@"center" context:kvoContext];
 }
 
 #pragma mark - Setters & Getters
@@ -146,6 +149,8 @@
                                                  name:UITextViewTextDidEndEditingNotification object:self];
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(textViewTextDidChange:)
                                                  name:UITextViewTextDidChangeNotification object:self];
+    
+    [self addObserver:self forKeyPath:@"center" options:NSKeyValueObservingOptionNew context:kvoContext];
     
     // Forces drawRect to be called when the bounds change
     self.contentMode = UIViewContentModeRedraw;
@@ -197,6 +202,17 @@
     
     self.floatingLabel.textColor = self.floatingLabelActiveTextColor;
     self.underlineView.backgroundColor = self.floatingLabelInactiveTextColor;
+}
+
+#pragma mark - KVO
+
+- (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {
+    
+    if (context == kvoContext) {
+        if ([keyPath isEqualToString:@"center"]) {
+            [self adjustFramesForNewPlaceholder];
+        }
+    }
 }
 
 #pragma mark - Drawing & Animations
@@ -312,7 +328,7 @@
     }
 }
 
-- (void)adjustFramesForNewPlaceholder
+- (void)adjustF5ramesForNewPlaceholder
 {
     [self.floatingLabel sizeToFit];
     
@@ -327,6 +343,34 @@
     
     self.offsetTextViewFrame = CGRectMake(self.originalTextViewFrame.origin.x, self.originalTextViewFrame.origin.y + offset,
                                       self.originalTextViewFrame.size.width, self.originalTextViewFrame.size.height - offset);
+}
+
+- (void)adjustFramesForNewPlaceholder
+{
+    [self.floatingLabel sizeToFit];
+    
+    self.originalTextViewFrame = self.frame;
+    CGFloat offset = ceil(self.floatingLabel.font.lineHeight);
+    
+    self.originalFloatingLabelFrame =
+        CGRectMake(self.originalTextViewFrame.origin.x + 5.f,
+                   self.originalTextViewFrame.origin.y,
+                   self.originalTextViewFrame.size.width - 10.f,
+                   self.floatingLabel.frame.size.height);
+    
+    self.offsetFloatingLabelFrame =
+        CGRectMake(self.originalFloatingLabelFrame.origin.x,
+                   self.originalFloatingLabelFrame.origin.y - offset,
+                   self.originalFloatingLabelFrame.size.width,
+                   self.originalFloatingLabelFrame.size.height);
+    
+    self.offsetTextViewFrame =
+        CGRectMake(self.offsetTextViewFrame.origin.x,
+                   self.offsetTextViewFrame.origin.y + offset,
+                   self.offsetTextViewFrame.size.width,
+                   self.offsetTextViewFrame.size.height);
+    
+    self.floatingLabel.frame = self.hasText ? self.offsetFloatingLabelFrame : self.originalFloatingLabelFrame;
 }
 
 - (void)animateFloatingLabelColorChangeWithAnimationBlock:(void (^)(void))animationBlock

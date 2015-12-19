@@ -38,6 +38,8 @@
 
 @implementation RPFloatingPlaceholderTextField
 
+static void * kvoContext = &kvoContext;
+
 #pragma mark - Programmatic Initializer
 
 - (instancetype)initWithFrame:(CGRect)frame
@@ -89,6 +91,7 @@
 {
     // Remove the text view observers
     [[NSNotificationCenter defaultCenter] removeObserver:self];
+    [self removeObserver:self forKeyPath:@"center" context:kvoContext];
 }
 
 #pragma mark - Setters & Getters
@@ -146,6 +149,8 @@
     [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(textFieldTextDidChange:)
                                                  name:UITextFieldTextDidChangeNotification object:self];
     
+    [self addObserver:self forKeyPath:@"center" options:NSKeyValueObservingOptionNew context:kvoContext];
+    
     // Forces drawRect to be called when the bounds change
     self.contentMode = UIViewContentModeRedraw;
 
@@ -185,6 +190,17 @@
     
     self.floatingLabel.textColor = self.floatingLabelActiveTextColor;
     self.underlineView.backgroundColor = self.floatingLabelInactiveTextColor;
+}
+
+#pragma mark - KVO
+
+- (void)observeValueForKeyPath:(NSString *)keyPath ofObject:(id)object change:(NSDictionary *)change context:(void *)context {
+    
+    if (context == kvoContext) {
+        if ([keyPath isEqualToString:@"center"]) {
+            [self adjustFramesForNewPlaceholder];
+        }
+    }
 }
 
 #pragma mark - Drawing & Animations
@@ -301,17 +317,30 @@
 {
     [self.floatingLabel sizeToFit];
     
+    self.originalTextFieldFrame =
+        UIEdgeInsetsInsetRect(self.frame, UIEdgeInsetsMake(5.f, 0.f, 2.f, 0.f));
+    
     CGFloat offset = ceil(self.floatingLabel.font.lineHeight);
     
-    self.originalFloatingLabelFrame = CGRectMake(self.originalTextFieldFrame.origin.x + 5.f, self.originalTextFieldFrame.origin.y,
-                                                 self.originalTextFieldFrame.size.width - 10.f, self.floatingLabel.frame.size.height);
-    self.floatingLabel.frame = self.originalFloatingLabelFrame;
+    self.originalFloatingLabelFrame =
+        CGRectMake(self.originalTextFieldFrame.origin.x + 5.f,
+                   self.originalTextFieldFrame.origin.y,
+                   self.originalTextFieldFrame.size.width - 10.f,
+                   self.floatingLabel.frame.size.height);
     
-    self.offsetFloatingLabelFrame = CGRectMake(self.originalFloatingLabelFrame.origin.x, self.originalFloatingLabelFrame.origin.y - offset,
-                                               self.originalFloatingLabelFrame.size.width, self.originalFloatingLabelFrame.size.height);
+    self.offsetFloatingLabelFrame =
+        CGRectMake(self.originalFloatingLabelFrame.origin.x,
+                   self.originalFloatingLabelFrame.origin.y - offset,
+                   self.originalFloatingLabelFrame.size.width,
+                   self.originalFloatingLabelFrame.size.height);
     
-    self.offsetTextFieldFrame = CGRectMake(self.originalTextFieldFrame.origin.x, self.originalTextFieldFrame.origin.y + offset,
-                                           self.originalTextFieldFrame.size.width, self.originalTextFieldFrame.size.height);
+    self.offsetTextFieldFrame =
+        CGRectMake(self.originalTextFieldFrame.origin.x,
+                   self.originalTextFieldFrame.origin.y + offset,
+                   self.originalTextFieldFrame.size.width,
+                   self.originalTextFieldFrame.size.height);
+    
+    self.floatingLabel.frame = self.hasText ? self.offsetFloatingLabelFrame : self.originalFloatingLabelFrame;
 }
 
 // Adds padding so these text fields align with RPFloatingPlaceholderTextView's
